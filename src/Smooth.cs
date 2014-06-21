@@ -540,7 +540,6 @@ namespace Smoothget.Smooth
             {
                 base.TrackEntry.Name = Parse.StringAttribute(streamAttributes, "Name");
             }
-            base.TrackEntry.Language = LanguageID.Hungarian;  // TODO: Make this configurable.
             base.Description = string.Format("{0} {1} channels {2} Hz @ {3} kbps", new object[] {
           GetCodecNameForAudioTag(waveFormatEx.wFormatTag), waveFormatEx.nChannels, waveFormatEx.nSamplesPerSec, 
           base.Bitrate / 1000u });
@@ -642,7 +641,6 @@ namespace Smoothget.Smooth
             {
                 base.TrackEntry.Name = Parse.StringAttribute(streamAttributes, "Name");
             }
-            base.TrackEntry.Language = LanguageID.Hungarian;  // TODO: Make this configurable.
             base.Description = string.Format("{0} {1}x{2} ({3}x{4}) @ {5} kbps", new object[] {
           fourcc, pixelWidth, pixelHeight, displayWidth, displayHeight, base.Bitrate / 1000u });
         }

@@ -260,7 +260,7 @@ namespace Smoothget
         private static void Logo()
         {
             AssemblyName name = Assembly.GetEntryAssembly().GetName();
-            Console.WriteLine(string.Concat(new object[] { name.Name, " v1.0-alpha1"}));
+            Console.WriteLine(string.Concat(new object[] { name.Name, " dev"}));
             Console.WriteLine();
         }
         private static void Help()
