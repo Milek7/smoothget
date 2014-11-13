@@ -37,74 +37,150 @@ namespace Smoothget
         public int GetOrder() { return 999; }
     }
 
+    internal class Source
+    {
+
+    }
+
+    internal class Destination
+    {
+
+    }
+
     internal class MainClass
     {
-        public static int audioQuality = 0; //TODO: Move audioQuality and videoQuality somewhere else.
-        public static int videoQuality = 0;
+        public static int audioQuality = -1; //TODO: Move audioQuality and videoQuality somewhere else.
+        public static int videoQuality = -1;
+
+        enum LinkType { None, Manifest };
 
         private static void Main(string[] args)
         {
             try
             {
                 Logo();
-                int j;
                 bool isDeterministic = false;
-                for (j = 0; j < args.Length; ++j)
+
+                LinkType linkType = LinkType.None;
+                string manifestFile = null;
+                string downloadDirectory = null;
+
+                for (int i = 0; i < args.Length; i++ )
                 {
-                    if (args[j] == "--")
+                    if (args[i] == "--manifest")
                     {
-                        ++j;
-                        break;
-                    }
-                    else if (args[j].Length == 0 || args[j] == "-" || args[j][0] != '-')
-                    {
-                        break;
-                    }
-                    else if (args[j] == "--det")
-                    {
-                        isDeterministic = true;
-                    }
-                    else if (args[j] == "--vq")
-                    {
-                        ++j;
-                        if (j <= args.Length)
+                        if (args.Length - 1 > i)
                         {
-                            videoQuality = Convert.ToInt32(args[j]);
+                            if (!args[i + 1].StartsWith("--"))
+                            {
+                                if (linkType == LinkType.None)
+                                {
+                                    linkType = LinkType.Manifest;
+                                    manifestFile = args[i + 1];
+                                }
+                                else
+                                    throw new System.Exception("Cmd line parsing error: multiple definition of download method");
+                            }
+                            else
+                                throw new System.Exception("Cmd line parsing error: --manifest option requires value");
                         }
+                        else
+                            throw new System.Exception("Cmd line parsing error: --manifest option requires value");
                     }
-                    else if (args[j] == "--aq")
+                    if (args[i] == "--out")
                     {
-                        ++j;
-                        if (j <= args.Length)
+                        if (args.Length - 1 > i)
                         {
-                            audioQuality = Convert.ToInt32(args[j]);
+                            if (!args[i + 1].StartsWith("--"))
+                            {
+                                if (downloadDirectory == null)
+                                {
+                                    downloadDirectory = args[i + 1];
+                                }
+                                else
+                                    throw new System.Exception("Cmd line parsing error: multiple definition of output directory");
+                            }
+                            else
+                                throw new System.Exception("Cmd line parsing error: --out option requires value");
                         }
+                        else
+                            throw new System.Exception("Cmd line parsing error: --out option requires value");
+                    }
+                    if (args[i] == "--det")
+                    {
+                        if (isDeterministic == false)
+                            isDeterministic = true;
+                        else
+                            throw new System.Exception("Cmd line parsing error: multiple definition of --det");
+                    }
+                    if (args[i] == "--vq")
+                    {
+                            if (args.Length - 1 > i)
+                            {
+                                if (!args[i + 1].StartsWith("--"))
+                                {
+                                    if (videoQuality < 0)
+                                    {
+                                        videoQuality = Convert.ToInt32(args[i + 1]);
+                                    }
+                                    else
+                                        throw new System.Exception("Cmd line parsing error: multiple definition of --vq");
+                                }
+                                else
+                                    throw new System.Exception("Cmd line parsing error: --vq option requires value");
+                            }
+                            else
+                                throw new System.Exception("Cmd line parsing error: --vq option requires value");
+                    }
+                    if (args[i] == "--aq")
+                    {
+                        if (args.Length - 1 > i)
+                        {
+                            if (!args[i + 1].StartsWith("--"))
+                            {
+                                if (audioQuality < 0)
+                                {
+                                    audioQuality = Convert.ToInt32(args[i + 1]);
+                                }
+                                else
+                                    throw new System.Exception("Cmd line parsing error: multiple definition of --aq");
+                            }
+                            else
+                                throw new System.Exception("Cmd line parsing error: --aq option requires value");
+                        }
+                        else
+                            throw new System.Exception("Cmd line parsing error: --aq option requires value");
                     }
                 }
-                if (args.Length < j + 2)
-                {
+
+                if (args.Length == 0)
                     Help();
+
+                if (manifestFile == null)
+                {
+                    throw new System.Exception("Cmd line parsing error: --manifest not specified");
                 }
-                int lastIdx = args.Length - 1;
-                string downloadDirectory = args[lastIdx].Trim(Path.GetInvalidFileNameChars()).Trim(Path.GetInvalidPathChars());
+
+                if (downloadDirectory == null)
+                {
+                    throw new System.Exception("Cmd line parsing error: --out not specified");
+                }
+
+                if (audioQuality == -1)
+                {
+                    Console.WriteLine("Warning: --aq not specified, assuming 0");
+                    audioQuality = 0;
+                }
+
+                if (videoQuality == -1)
+                {
+                    Console.WriteLine("Warning: --vq not specified, assuming 0");
+                    videoQuality = 0;
+                }
+
                 Console.WriteLine("Download directory: " + downloadDirectory);
-                string[] urls = new string[lastIdx - j];
-                for (int i = j; i < lastIdx; ++i)
-                {
-                    urls[i - j] = args[i];
-                }
-                IList<string> partUrls = ProcessUrls(urls);
-                Console.WriteLine("Parts to download:");
-                for (int i = 0; i < partUrls.Count; i++)
-                {
-                    Console.WriteLine("  Part URL: " + partUrls[i]);
-                }
-                Console.WriteLine();
-                for (int i = 0; i < partUrls.Count; i++)
-                {
-                    RecordAndMux(partUrls[i], downloadDirectory, isDeterministic);
-                }
-                Console.WriteLine("All downloading and muxing done.");
+                RecordAndMux(manifestFile, downloadDirectory, isDeterministic);
+                Console.WriteLine("Done.");
             }
             catch (Exception e)
             {
@@ -216,9 +292,9 @@ namespace Smoothget
                 Console.Write(msg);
             }
         }
-        private static void RecordAndMux(string ismFileName, string outputDirectory, bool isDeterministic)
+        private static void RecordAndMux(string manifestUrl, string outputDirectory, bool isDeterministic)
         {
-            string mkvPath = outputDirectory + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(ismFileName) + ".mkv";
+            string mkvPath = outputDirectory + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(manifestUrl) + ".mkv";
             string muxStatePath = Path.ChangeExtension(mkvPath, "muxstate");
             if (File.Exists(mkvPath) && !File.Exists(muxStatePath))
             {
@@ -227,7 +303,6 @@ namespace Smoothget
                 return;
             }
             Console.WriteLine("Will mux to MKV: " + mkvPath);
-            string manifestUrl = ismFileName + "/manifest";
             Uri manifestUri;
             string manifestPath;
             if (manifestUrl.StartsWith("http://") || manifestUrl.StartsWith("https://"))
@@ -260,12 +335,11 @@ namespace Smoothget
         private static void Logo()
         {
             AssemblyName name = Assembly.GetEntryAssembly().GetName();
-            Console.WriteLine(string.Concat(new object[] { name.Name, " dev"}));
+            Console.WriteLine(name.Name + " dev");
             Console.WriteLine();
         }
         private static void Help()
         {
-            // Console.WriteLine(" Soda Media Center");  // TODO: Where does it come crom?
             AssemblyName name = Assembly.GetEntryAssembly().GetName();
             Console.WriteLine("Microsoft IIS Smooth Streaming downloader and muxer to MKV.");
             Console.WriteLine();
@@ -274,13 +348,16 @@ namespace Smoothget
             Console.WriteLine("- Video: H264, VC-1");
             Console.WriteLine();
             Console.WriteLine("Usage:");
-            Console.WriteLine(name.Name + " [<flag> ...] <source> [...] <output-directory>");
-            Console.WriteLine("<source> is an .ism (or /manifest) file or URL.");
-            Console.WriteLine("<output-directory> can be just . , a properly named file will be created.");
-            Console.WriteLine("Many temporary files and subdirs may be created and left in <output-directory>.");
-            Console.WriteLine("--det  Enable deterministic MKV output (no random, no current time).");
-            Console.WriteLine("--aq  Audio quality level (from zero, sorted from best to lower quality).");
-            Console.WriteLine("--vq  Video quality level (from zero, sorted from best to lower quality).");
+            Console.WriteLine(name.Name + " [<parameter> ...]");
+            Console.WriteLine();
+            Console.WriteLine("Flags:");
+            Console.WriteLine("--out                Output directory. Temporary files may be created and left here.");
+            Console.WriteLine("File download method: (use only one at once)");
+            Console.WriteLine("--manifest <url>     Download stream using manifest file.");
+            Console.WriteLine("Other optional parameters:");
+            Console.WriteLine("--det                Enable deterministic MKV output (no random, no current time).");
+            Console.WriteLine("--aq <quality>       Audio quality level (from 0, sorted from best to lower quality).");
+            Console.WriteLine("--vq <quality>       Video quality level (from 0, sorted from best to lower quality).");
             Environment.Exit(1);
         }
     }

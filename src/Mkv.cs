@@ -228,7 +228,7 @@ namespace Smoothget.Mkv
         }
         public void WriteRaw(byte[] bytes, int start, int end)
         {
-            this.Stream.Write(bytes, start, end - start);
+           this.Stream.Write(bytes, start, end - start);
         }
     }
 
